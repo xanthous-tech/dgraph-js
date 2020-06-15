@@ -1,12 +1,13 @@
 import * as grpc from "grpc";
 import { api } from "../generated/api";
+import * as types from "./types";
 import { DgraphClientStub } from "./clientStub";
 import { Txn, TxnOptions } from "./txn";
 export declare class DgraphClient {
     private readonly clients;
     private debugMode;
     constructor(...clients: DgraphClientStub[]);
-    alter(op: api.Operation, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): Promise<api.Payload>;
+    alter(op: api.Operation, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): Promise<types.Payload>;
     newTxn(txnOpts?: TxnOptions): Txn;
     setDebugMode(mode?: boolean): void;
     debug(msg: string): void;

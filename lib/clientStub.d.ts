@@ -1,4 +1,4 @@
-import grpc from "grpc";
+import * as grpc from "grpc";
 import { api } from "../generated/api";
 export declare class DgraphClientStub {
     private readonly stub;

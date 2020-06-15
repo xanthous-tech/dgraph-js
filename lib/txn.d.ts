@@ -1,6 +1,7 @@
 import * as grpc from "grpc";
 import { api } from "../generated/api";
 import { DgraphClient } from "./client";
+import * as types from "./types";
 export declare type TxnOptions = {
     readOnly?: boolean;
     bestEffort?: boolean;
@@ -13,12 +14,12 @@ export declare class Txn {
     private readonly useReadOnly;
     private readonly useBestEffort;
     constructor(dc: DgraphClient, txnOpts?: TxnOptions);
-    query(q: string, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response>;
+    query(q: string, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response>;
     queryWithVars(q: string, vars?: {
         [k: string]: any;
-    }, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response>;
-    mutate(mu: api.Mutation, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response>;
-    doRequest(req: api.Request, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response>;
+    }, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response>;
+    mutate(mu: types.Mutation, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response>;
+    doRequest(req: api.Request, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response>;
     commit(metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<void>;
     discard(metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<void>;
     private mergeContext;

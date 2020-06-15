@@ -1,4 +1,4 @@
-import grpc, { ServiceDefinition } from "grpc";
+import * as grpc from "grpc";
 import { loadSync } from "@grpc/proto-loader";
 import { resolve } from "path";
 
@@ -6,7 +6,7 @@ import { api } from "../generated/api";
 
 import { ERR_REFRESH_JWT_EMPTY } from "./errors";
 
-const SERVICE_NAME = 'Dgraph';
+const SERVICE_NAME = "api.Dgraph";
 
 /**
  * Stub is a stub/client connecting to a single dgraph server instance.
@@ -31,8 +31,14 @@ export class DgraphClientStub {
             credentials = grpc.credentials.createInsecure();
         }
 
-        const serviceDefinition = loadSync(resolve(__dirname, '..', 'protos', 'api.proto'))[SERVICE_NAME] as ServiceDefinition<any>;
-        const Client = grpc.makeGenericClientConstructor(serviceDefinition, SERVICE_NAME, {});
+        const serviceDefinition = loadSync(
+            resolve(__dirname, "..", "protos", "api.proto")
+        )[SERVICE_NAME] as grpc.ServiceDefinition<any>;
+        const Client = grpc.makeGenericClientConstructor(
+            serviceDefinition,
+            SERVICE_NAME,
+            {}
+        );
 
         this.stub = new Client(addr, credentials, options);
     }
@@ -69,7 +75,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(payload);
-                },
+                }
             );
         });
 
@@ -96,7 +102,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(payload);
-                },
+                }
             );
         });
     }
@@ -125,7 +131,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(jwt);
-                },
+                }
             );
         });
 
@@ -152,7 +158,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(response);
-                },
+                }
             );
         });
     }
@@ -175,7 +181,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(response);
-                },
+                }
             );
         });
     }
@@ -198,7 +204,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(txnContext);
-                },
+                }
             );
         });
     }
@@ -221,7 +227,7 @@ export class DgraphClientStub {
                     }
 
                     resolve(version);
-                },
+                }
             );
         });
     }

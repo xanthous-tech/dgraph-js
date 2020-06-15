@@ -44,10 +44,6 @@ export function stringifyMessage(msg: any): string {
 
 export { isBase64 } from "is-base64";
 
-export function strToB64(str: string): string {
-    return Buffer.from(str, "utf8").toString("base64");
-}
-
 export function strToU8(str: string): Uint8Array {
     return new Uint8Array(Buffer.from(str, "utf8"));
 }

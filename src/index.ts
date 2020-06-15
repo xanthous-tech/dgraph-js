@@ -1,9 +1,8 @@
 import { api } from "../generated/api";
 
+export * from "./types";
+
 const {
-    Payload,
-    Response,
-    Mutation,
     Operation,
     Request,
     TxnContext,
@@ -16,9 +15,6 @@ const {
 } = api;
 
 export {
-    Payload,
-    Response,
-    Mutation,
     Operation,
     Request,
     TxnContext,

@@ -1,67 +1,55 @@
-import * as jspb from "google-protobuf";
+import * as pbjs from "protobufjs";
 
-import * as messages from "../generated/api_pb";
+import { api } from "../generated/api";
 
-import { b64ToStr, isBase64, strToB64, strToJson, strToU8, u8ToStr } from "./util";
-
-// tslint:disable max-classes-per-file
+import {
+    b64ToStr,
+    isBase64,
+    strToJson,
+    strToU8,
+    u8ToStr,
+} from "./util";
 
 // Alter classes.
 
 /**
  * Payload represents the return value of an alter operation.
  */
-export class Payload extends messages.Payload {
-    public getData(): any { // tslint:disable-line no-any
+export class Payload extends api.Payload {
+    public getData(): any {
         let jsonStr: string;
-        const value = super.getData();
-        if (value instanceof Uint8Array) {
-            jsonStr = u8ToStr(value);
-        } else {
-            jsonStr = b64ToStr(value);
-        }
+
+        const value = this.Data;
+
+        jsonStr = u8ToStr(value);
 
         return strToJson(jsonStr);
     }
 
     public getData_asB64(): string {
-        const value = super.getData();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.Data;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getData_asU8(): Uint8Array {
-        const value = super.getData();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.Data;
         return value;
     }
 
-    public setData(value: any): void { // tslint:disable-line no-any
+    public setData(value: any): void {
         if (value instanceof Uint8Array) {
-            super.setData(value);
+            this.Data = value;
             return;
         }
+
         if (typeof value === "string" || value instanceof String) {
-            super.setData(value.toString());
+            this.Data = strToU8(value.toString());
             return;
         }
 
         const jsonStr = JSON.stringify(value);
-        super.setData(strToU8(jsonStr));
+        this.Data = strToU8(jsonStr);
     }
-}
-
-export function createPayload(oldPayload: messages.Payload): Payload {
-    return messages.Payload.deserializeBinaryFromReader(
-        new Payload(),
-        new jspb.BinaryReader(oldPayload.serializeBinary()),
-    );
 }
 
 // Mutation and Query classes.
@@ -69,10 +57,20 @@ export function createPayload(oldPayload: messages.Payload): Payload {
 /**
  * Response represents the return value of a mutation or query operations.
  */
-export class Response extends messages.Response {
-    public getJson(): any { // tslint:disable-line no-any
+export class Response extends api.Response {
+    public uidsMap: Map<string, string>;
+
+    public getUidsMap(): Map<string, string> {
+        if (!this.uidsMap) {
+            this.uidsMap = new Map(Object.entries(this.uids));
+        }
+
+        return this.uidsMap;
+    }
+
+    public getJson(): any {
         let jsonStr: string;
-        const value = super.getJson();
+        const value = this.json;
         if (value instanceof Uint8Array) {
             jsonStr = u8ToStr(value);
         } else {
@@ -83,43 +81,29 @@ export class Response extends messages.Response {
     }
 
     public getJson_asB64(): string {
-        const value = super.getJson();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.json;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getJson_asU8(): Uint8Array {
-        const value = super.getJson();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.json;
         return value;
     }
 
-    public setJson(value: any): void { // tslint:disable-line no-any
+    public setJson(value: any): void {
         if (value instanceof Uint8Array) {
-            super.setJson(value);
+            this.json = value;
             return;
         }
+
         if (typeof value === "string" || value instanceof String) {
-            super.setJson(value.toString());
+            this.json = strToU8(value.toString());
             return;
         }
 
         const jsonStr = JSON.stringify(value);
-        super.setJson(strToU8(jsonStr));
+        this.json = strToU8(jsonStr);
     }
-}
-
-export function createResponse(oldResponse: messages.Response): Response {
-    return messages.Response.deserializeBinaryFromReader(
-        new Response(),
-        new jspb.BinaryReader(oldResponse.serializeBinary()),
-    );
 }
 
 // Mutate classes.
@@ -127,10 +111,10 @@ export function createResponse(oldResponse: messages.Response): Response {
 /**
  * Mutation represents the request value of a muatate operation.
  */
-export class Mutation extends messages.Mutation {
-    public getSetJson(): any { // tslint:disable-line no-any
+export class Mutation extends api.Mutation {
+    public getSetJson(): any {
         let jsonStr: string;
-        const value = super.getSetJson();
+        const value = this.setJson;
         if (value instanceof Uint8Array) {
             jsonStr = u8ToStr(value);
         } else {
@@ -141,40 +125,32 @@ export class Mutation extends messages.Mutation {
     }
 
     public getSetJson_asB64(): string {
-        const value = super.getSetJson();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.setJson;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getSetJson_asU8(): Uint8Array {
-        const value = super.getSetJson();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.setJson;
         return value;
     }
 
-    public setSetJson(value: any): void { // tslint:disable-line no-any
+    public setSetJson(value: any): void {
         if (value instanceof Uint8Array) {
-            super.setSetJson(value);
+            this.setJson = value;
             return;
         }
         if (typeof value === "string" || value instanceof String) {
-            super.setSetJson(value.toString());
+            this.setJson = strToU8(value.toString());
             return;
         }
 
         const jsonStr = JSON.stringify(value);
-        super.setSetJson(strToU8(jsonStr));
+        this.setJson = strToU8(jsonStr);
     }
 
-    public getDeleteJson(): any { // tslint:disable-line no-any
+    public getDeleteJson(): any {
         let jsonStr: string;
-        const value = super.getDeleteJson();
+        const value = this.deleteJson;
         if (value instanceof Uint8Array) {
             jsonStr = u8ToStr(value);
         } else {
@@ -185,39 +161,31 @@ export class Mutation extends messages.Mutation {
     }
 
     public getDeleteJson_asB64(): string {
-        const value = super.getDeleteJson();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.deleteJson;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getDeleteJson_asU8(): Uint8Array {
-        const value = super.getDeleteJson();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.deleteJson;
         return value;
     }
 
-    public setDeleteJson(value: any): void { // tslint:disable-line no-any
+    public setDeleteJson(value: any): void {
         if (value instanceof Uint8Array) {
-            super.setDeleteJson(value);
+            this.deleteJson = value;
             return;
         }
         if (typeof value === "string" || value instanceof String) {
-            super.setDeleteJson(value.toString());
+            this.deleteJson = strToU8(value.toString());
             return;
         }
 
         const jsonStr = JSON.stringify(value);
-        super.setDeleteJson(strToU8(jsonStr));
+        this.deleteJson = strToU8(jsonStr);
     }
 
     public getSetNquads(): Uint8Array | string {
-        const value = super.getSetNquads();
+        const value = this.setNquads;
         if (value instanceof Uint8Array) {
             return u8ToStr(value);
         }
@@ -226,39 +194,32 @@ export class Mutation extends messages.Mutation {
     }
 
     public getSetNquads_asB64(): string {
-        const value = super.getSetNquads();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.setNquads;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getSetNquads_asU8(): Uint8Array {
-        const value = super.getSetNquads();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.setNquads;
         return value;
     }
 
     public setSetNquads(value: Uint8Array | string): void {
         if (value instanceof Uint8Array) {
-            super.setSetNquads(value);
-            return;
-        }
-        // tslint:disable-next-line no-unsafe-any
-        if (isBase64(value)) {
-            super.setSetNquads(value);
+            this.setNquads = value;
             return;
         }
 
-        super.setSetNquads(strToB64(value));
+        if (isBase64(value)) {
+            this.setNquads = new Uint8Array();
+            pbjs.util.base64.decode(value, this.setNquads, 0);
+            return;
+        }
+
+        this.setNquads = strToU8(value);
     }
 
     public getDelNquads(): Uint8Array | string {
-        const value = super.getDelNquads();
+        const value = this.delNquads;
         if (value instanceof Uint8Array) {
             return u8ToStr(value);
         }
@@ -267,34 +228,27 @@ export class Mutation extends messages.Mutation {
     }
 
     public getDelNquads_asB64(): string {
-        const value = super.getDelNquads();
-        if (value instanceof Uint8Array) {
-            return jspb.Message.bytesAsB64(value);
-        }
-
-        return value;
+        const value = this.delNquads;
+        return pbjs.util.base64.encode(value, 0, value.byteLength);
     }
 
     public getDelNquads_asU8(): Uint8Array {
-        const value = super.getDelNquads();
-        if (typeof value === "string" || value instanceof String) {
-            return jspb.Message.bytesAsU8(value.toString());
-        }
-
+        const value = this.delNquads;
         return value;
     }
 
     public setDelNquads(value: Uint8Array | string): void {
         if (value instanceof Uint8Array) {
-            super.setDelNquads(value);
+            this.delNquads = value;
             return;
         }
         // tslint:disable-next-line no-unsafe-any
         if (isBase64(value)) {
-            super.setDelNquads(value);
+            this.delNquads = new Uint8Array();
+            pbjs.util.base64.decode(value, this.delNquads, 0);
             return;
         }
 
-        super.setDelNquads(strToB64(value));
+        this.delNquads = strToU8(value);
     }
 }

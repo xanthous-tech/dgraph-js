@@ -1,14 +1,17 @@
 import * as grpc from "grpc";
+import * as Long from "long";
 
 import { api } from "../generated/api";
 
 import { DgraphClient, isJwtExpired } from "./client";
-import { ERR_ABORTED, ERR_BEST_EFFORT_REQUIRED_READ_ONLY, ERR_FINISHED, ERR_READ_ONLY } from "./errors";
+import * as types from "./types";
 import {
-    isAbortedError,
-    isConflictError,
-    stringifyMessage,
-} from "./util";
+    ERR_ABORTED,
+    ERR_BEST_EFFORT_REQUIRED_READ_ONLY,
+    ERR_FINISHED,
+    ERR_READ_ONLY,
+} from "./errors";
+import { isAbortedError, isConflictError, stringifyMessage } from "./util";
 
 export type TxnOptions = {
     readOnly?: boolean;
@@ -40,11 +43,17 @@ export class Txn {
     constructor(dc: DgraphClient, txnOpts?: TxnOptions) {
         this.dc = dc;
         this.ctx = new api.TxnContext();
-        const defaultedTxnOpts = {readOnly: false, bestEffort: false, ...txnOpts};
+        const defaultedTxnOpts = {
+            readOnly: false,
+            bestEffort: false,
+            ...txnOpts,
+        };
         this.useReadOnly = defaultedTxnOpts.readOnly;
         this.useBestEffort = defaultedTxnOpts.bestEffort;
         if (this.useBestEffort && !this.useReadOnly) {
-            this.dc.debug(`Client attempted to query using best-effort without setting the transaction to read-only`);
+            this.dc.debug(
+                `Client attempted to query using best-effort without setting the transaction to read-only`
+            );
             throw ERR_BEST_EFFORT_REQUIRED_READ_ONLY;
         }
     }
@@ -54,7 +63,11 @@ export class Txn {
      * need to be made in the same transaction, it's convenient to chain the method,
      * e.g. client.newTxn().query("...").
      */
-    public query(q: string, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
+    public query(
+        q: string,
+        metadata?: grpc.Metadata,
+        options?: grpc.CallOptions
+    ): Promise<types.Response> {
         return this.queryWithVars(q, undefined, metadata, options);
     }
 
@@ -66,10 +79,12 @@ export class Txn {
         q: string,
         vars?: { [k: string]: any }, // tslint:disable-line no-any
         metadata?: grpc.Metadata,
-        options?: grpc.CallOptions,
-    ): Promise<api.Response> {
+        options?: grpc.CallOptions
+    ): Promise<types.Response> {
         if (this.finished) {
-            this.dc.debug(`Query request (ERR_FINISHED):\nquery = ${q}\nvars = ${vars}`);
+            this.dc.debug(
+                `Query request (ERR_FINISHED):\nquery = ${q}\nvars = ${vars}`
+            );
             throw ERR_FINISHED;
         }
 
@@ -96,8 +111,10 @@ export class Txn {
      * operations on it will fail.
      */
     public async mutate(
-        mu: api.Mutation, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
-
+        mu: types.Mutation,
+        metadata?: grpc.Metadata,
+        options?: grpc.CallOptions
+    ): Promise<types.Response> {
         const req = new api.Request();
         req.startTs = this.ctx.startTs;
         req.mutations = [mu];
@@ -107,16 +124,31 @@ export class Txn {
     }
 
     public async doRequest(
-        req: api.Request, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
+        req: api.Request,
+        metadata?: grpc.Metadata,
+        options?: grpc.CallOptions
+    ): Promise<types.Response> {
         if (this.finished) {
-            this.dc.debug(`Do request (ERR_FINISHED):\nquery = ${req.query}\nvars = ${JSON.stringify(req.vars)}`);
-            this.dc.debug(`Do request (ERR_FINISHED):\nmutation = ${stringifyMessage(req.mutations[0])}`);
+            this.dc.debug(
+                `Do request (ERR_FINISHED):\nquery = ${
+                    req.query
+                }\nvars = ${JSON.stringify(req.vars)}`
+            );
+            this.dc.debug(
+                `Do request (ERR_FINISHED):\nmutation = ${stringifyMessage(
+                    req.mutations[0]
+                )}`
+            );
             throw ERR_FINISHED;
         }
 
         if (req.mutations.length > 0) {
             if (this.useReadOnly) {
-                this.dc.debug(`Do request (ERR_READ_ONLY):\nmutation = ${stringifyMessage(req.mutations[0])}`);
+                this.dc.debug(
+                    `Do request (ERR_READ_ONLY):\nmutation = ${stringifyMessage(
+                        req.mutations[0]
+                    )}`
+                );
                 throw ERR_READ_ONLY;
             }
             this.mutated = true;
@@ -125,16 +157,16 @@ export class Txn {
         req.startTs = this.ctx.startTs;
         this.dc.debug(`Do request:\n${stringifyMessage(req)}`);
 
-        let resp: api.Response;
+        let resp: types.Response;
         const c = this.dc.anyClient();
-        const operation = async() => c.query(req, metadata, options);
+        const operation = async () => c.query(req, metadata, options);
 
         try {
-            resp = await operation();
+            resp = new types.Response(await operation());
         } catch (e) {
             if (isJwtExpired(e) === true) {
                 await c.retryLogin(metadata, options);
-                resp = await operation();
+                resp = new types.Response(await operation());
             } else {
                 // Since a mutation error occurred, the txn should no longer be used (some
                 // mutations could have applied but not others, but we don't know which ones).
@@ -148,7 +180,7 @@ export class Txn {
                 // Transaction could be aborted(status.ABORTED) if commitNow was true, or server
                 // could send a message that this mutation conflicts(status.FAILED_PRECONDITION)
                 // with another transaction.
-                throw (isAbortedError(e) || isConflictError(e)) ? ERR_ABORTED : e;
+                throw isAbortedError(e) || isConflictError(e) ? ERR_ABORTED : e;
             }
         }
 
@@ -171,7 +203,10 @@ export class Txn {
      * It's up to the user to decide if they wish to retry. In this case, the user
      * should create a new transaction.
      */
-    public async commit(metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<void> {
+    public async commit(
+        metadata?: grpc.Metadata,
+        options?: grpc.CallOptions
+    ): Promise<void> {
         if (this.finished) {
             throw ERR_FINISHED;
         }
@@ -182,7 +217,8 @@ export class Txn {
         }
 
         const c = this.dc.anyClient();
-        const operation = async () => c.commitOrAbort(this.ctx, metadata, options);
+        const operation = async () =>
+            c.commitOrAbort(this.ctx, metadata, options);
         try {
             await operation();
         } catch (e) {
@@ -205,7 +241,10 @@ export class Txn {
      * is unavailable. In these cases, the server will eventually do the transaction
      * clean up.
      */
-    public async discard(metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<void> {
+    public async discard(
+        metadata?: grpc.Metadata,
+        options?: grpc.CallOptions
+    ): Promise<void> {
         if (this.finished) {
             return;
         }
@@ -217,7 +256,8 @@ export class Txn {
 
         this.ctx.aborted = true;
         const c = this.dc.anyClient();
-        const operation = async () => c.commitOrAbort(this.ctx, metadata, options);
+        const operation = async () =>
+            c.commitOrAbort(this.ctx, metadata, options);
         try {
             await operation();
         } catch (e) {
@@ -236,15 +276,22 @@ export class Txn {
             return;
         }
 
-        if (this.ctx.startTs === 0) {
+        if (Long.fromValue(this.ctx.startTs).toNumber() === 0) {
             this.ctx.startTs = src.startTs;
-        } else if (this.ctx.startTs !== src.startTs) {
+        } else if (Long.fromValue(this.ctx.startTs).notEquals(Long.fromValue(src.startTs))) {
             // This condition should never be true.
             throw new Error("StartTs mismatch");
         }
 
-        for (const key of src.keys) {
-            this.ctx.keys.push(key);
+        if (src.keys && src.keys.length > 0) {
+            if (!this.ctx.keys) {
+                this.ctx.keys = [];
+            }
+
+            for (const key of src.keys) {
+                this.ctx.keys.push(key);
+            }
         }
+
     }
 }

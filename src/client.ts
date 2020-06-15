@@ -2,6 +2,7 @@ import * as grpc from "grpc";
 
 import { api } from "../generated/api";
 
+import * as types from "./types";
 import { DgraphClientStub } from "./clientStub";
 import { ERR_NO_CLIENTS } from "./errors";
 import { Txn, TxnOptions } from "./txn";
@@ -38,18 +39,22 @@ export class DgraphClient {
      *
      * 3. Drop the database.
      */
-    public async alter(op: api.Operation, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): Promise<api.Payload> {
+    public async alter(
+        op: api.Operation,
+        metadata?: grpc.Metadata | null,
+        options?: grpc.CallOptions | null
+    ): Promise<types.Payload> {
         this.debug(`Alter request:\n${stringifyMessage(op)}`);
 
         const c = this.anyClient();
-        let payload: api.Payload;
+        let payload: types.Payload;
         const operation = async () => c.alter(op, metadata, options);
         try {
-            payload = await operation();
+            payload = new types.Payload(await operation());
         } catch (e) {
             if (isJwtExpired(e) === true) {
                 await c.retryLogin(metadata, options);
-                payload = await operation();
+                payload = new types.Payload(await operation());
             } else {
                 throw e;
             }
@@ -90,7 +95,8 @@ export class DgraphClient {
 }
 
 // isJwtExpired returns true if the error indicates that the jwt has expired.
-export function isJwtExpired(err: any): Boolean { // tslint:disable-line no-any
+export function isJwtExpired(err: any): Boolean {
+    // tslint:disable-line no-any
     if (!err) {
         return false;
     }
@@ -104,7 +110,11 @@ export function isJwtExpired(err: any): Boolean { // tslint:disable-line no-any
  * This helper function doesn't run the mutation on the server. It must be done
  * by the user after the function returns.
  */
-export function deleteEdges(mu: api.Mutation, uid: string, ...predicates: string[]): void {
+export function deleteEdges(
+    mu: api.Mutation,
+    uid: string,
+    ...predicates: string[]
+): void {
     for (const predicate of predicates) {
         const nquad = new api.NQuad();
         nquad.subject = uid;
