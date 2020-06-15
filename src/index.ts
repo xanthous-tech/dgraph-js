@@ -1,6 +1,9 @@
-// Export all the required message types.
-export * from "./types";
-export {
+import { api } from "../generated/api";
+
+const {
+    Payload,
+    Response,
+    Mutation,
     Operation,
     Request,
     TxnContext,
@@ -10,7 +13,22 @@ export {
     Value,
     Facet,
     Latency,
-} from "../generated/api_pb";
+} = api;
+
+export {
+    Payload,
+    Response,
+    Mutation,
+    Operation,
+    Request,
+    TxnContext,
+    Check,
+    Version,
+    NQuad,
+    Value,
+    Facet,
+    Latency,
+};
 
 // Export DgraphClientStub class.
 export * from "./clientStub";

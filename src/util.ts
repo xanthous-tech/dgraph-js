@@ -1,4 +1,3 @@
-import * as jspb from "google-protobuf";
 import * as grpc from "grpc";
 
 export function errorCode(err: any): { valid: boolean; code: number } { // tslint:disable-line no-any
@@ -35,42 +34,12 @@ export function isUnauthenticatedError(err: any): boolean { // tslint:disable-li
     return ec.valid && (ec.code === grpc.status.UNAUTHENTICATED);
 }
 
-export function promisify1<A, T>(
-    f: (arg: A, cb: (err?: Error, res?: T) => void) => void,
-    thisContext?: any, // tslint:disable-line no-any
-): (arg: A) => Promise<T> {
-    return (arg: A) => {
-        // tslint:disable-next-line no-any
-        return new Promise((resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void): void => {
-            f.call(
-                thisContext,
-                arg,
-                (err?: Error, result?: T): void => (err !== undefined && err !== null) ? reject(err) : resolve(result),
-            );
-        });
-    };
-}
-
-export function promisify3<A, B, C, T>(
-    f: (argA: A, argB: B, argC: C, cb: (err?: Error, res?: T) => void) => void,
-    thisContext?: any, // tslint:disable-line no-any
-): (argA: A, argB: B, argC: C) => Promise<T> {
-    return (argA: A, argB: B, argC: C) => {
-        // tslint:disable-next-line no-any
-        return new Promise((resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void): void => {
-            f.call(
-                thisContext,
-                argA,
-                argB,
-                argC,
-                (err?: Error, result?: T): void => (err !== undefined && err !== null) ? reject(err) : resolve(result),
-            );
-        });
-    };
-}
-
-export function stringifyMessage(msg: jspb.Message): string {
-    return JSON.stringify(msg.toObject());
+export function stringifyMessage(msg: any): string {
+    if (typeof msg.toJSON === 'function') {
+        return JSON.stringify(msg.toJSON());
+    } else {
+        return `${JSON.stringify(msg)}`;
+    }
 }
 
 export { isBase64 } from "is-base64";

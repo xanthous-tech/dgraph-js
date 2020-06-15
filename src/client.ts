@@ -1,11 +1,10 @@
 import * as grpc from "grpc";
 
-import * as messages from "../generated/api_pb";
+import { api } from "../generated/api";
 
 import { DgraphClientStub } from "./clientStub";
 import { ERR_NO_CLIENTS } from "./errors";
 import { Txn, TxnOptions } from "./txn";
-import * as types from "./types";
 import { isUnauthenticatedError, stringifyMessage } from "./util";
 
 /**
@@ -39,11 +38,11 @@ export class DgraphClient {
      *
      * 3. Drop the database.
      */
-    public async alter(op: messages.Operation, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): Promise<types.Payload> {
+    public async alter(op: api.Operation, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): Promise<api.Payload> {
         this.debug(`Alter request:\n${stringifyMessage(op)}`);
 
         const c = this.anyClient();
-        let payload: messages.Payload;
+        let payload: api.Payload;
         const operation = async () => c.alter(op, metadata, options);
         try {
             payload = await operation();
@@ -55,10 +54,9 @@ export class DgraphClient {
                 throw e;
             }
         }
-        const pl: types.Payload = types.createPayload(payload);
-        this.debug(`Alter response:\n${stringifyMessage(pl)}`);
+        this.debug(`Alter response:\n${stringifyMessage(payload)}`);
 
-        return pl;
+        return payload;
     }
 
     /**
@@ -106,16 +104,16 @@ export function isJwtExpired(err: any): Boolean { // tslint:disable-line no-any
  * This helper function doesn't run the mutation on the server. It must be done
  * by the user after the function returns.
  */
-export function deleteEdges(mu: types.Mutation, uid: string, ...predicates: string[]): void {
+export function deleteEdges(mu: api.Mutation, uid: string, ...predicates: string[]): void {
     for (const predicate of predicates) {
-        const nquad = new messages.NQuad();
-        nquad.setSubject(uid);
-        nquad.setPredicate(predicate);
+        const nquad = new api.NQuad();
+        nquad.subject = uid;
+        nquad.predicate = predicate;
 
-        const ov = new messages.Value();
-        ov.setDefaultVal("_STAR_ALL");
-        nquad.setObjectValue(ov);
+        const ov = new api.Value();
+        ov.defaultVal = "_STAR_ALL";
+        nquad.objectValue = ov;
 
-        mu.addDel(nquad);
+        mu.del.push(nquad);
     }
 }

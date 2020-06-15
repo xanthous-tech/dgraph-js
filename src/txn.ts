@@ -1,10 +1,9 @@
 import * as grpc from "grpc";
 
-import * as messages from "../generated/api_pb";
+import { api } from "../generated/api";
 
 import { DgraphClient, isJwtExpired } from "./client";
 import { ERR_ABORTED, ERR_BEST_EFFORT_REQUIRED_READ_ONLY, ERR_FINISHED, ERR_READ_ONLY } from "./errors";
-import * as types from "./types";
 import {
     isAbortedError,
     isConflictError,
@@ -32,7 +31,7 @@ export type TxnOptions = {
  */
 export class Txn {
     private readonly dc: DgraphClient;
-    private readonly ctx: messages.TxnContext;
+    private readonly ctx: api.TxnContext;
     private finished: boolean = false;
     private mutated: boolean = false;
     private readonly useReadOnly: boolean = false;
@@ -40,7 +39,7 @@ export class Txn {
 
     constructor(dc: DgraphClient, txnOpts?: TxnOptions) {
         this.dc = dc;
-        this.ctx = new messages.TxnContext();
+        this.ctx = new api.TxnContext();
         const defaultedTxnOpts = {readOnly: false, bestEffort: false, ...txnOpts};
         this.useReadOnly = defaultedTxnOpts.readOnly;
         this.useBestEffort = defaultedTxnOpts.bestEffort;
@@ -55,7 +54,7 @@ export class Txn {
      * need to be made in the same transaction, it's convenient to chain the method,
      * e.g. client.newTxn().query("...").
      */
-    public query(q: string, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response> {
+    public query(q: string, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
         return this.queryWithVars(q, undefined, metadata, options);
     }
 
@@ -68,27 +67,18 @@ export class Txn {
         vars?: { [k: string]: any }, // tslint:disable-line no-any
         metadata?: grpc.Metadata,
         options?: grpc.CallOptions,
-    ): Promise<types.Response> {
+    ): Promise<api.Response> {
         if (this.finished) {
             this.dc.debug(`Query request (ERR_FINISHED):\nquery = ${q}\nvars = ${vars}`);
             throw ERR_FINISHED;
         }
 
-        const req = new messages.Request();
-        req.setQuery(q);
-        req.setStartTs(this.ctx.getStartTs());
-        req.setReadOnly(this.useReadOnly);
-        req.setBestEffort(this.useBestEffort);
-
-        if (vars !== undefined) {
-            const varsMap = req.getVarsMap();
-            Object.keys(vars).forEach((key: string) => {
-                const value = vars[key];
-                if (typeof value === "string" || value instanceof String) {
-                    varsMap.set(key, value.toString());
-                }
-            });
-        }
+        const req = new api.Request();
+        req.query = q;
+        req.startTs = this.ctx.startTs;
+        req.readOnly = this.useReadOnly;
+        req.bestEffort = this.useBestEffort;
+        req.vars = vars;
 
         return this.doRequest(req, metadata, options);
     }
@@ -106,45 +96,45 @@ export class Txn {
      * operations on it will fail.
      */
     public async mutate(
-        mu: types.Mutation, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response> {
+        mu: api.Mutation, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
 
-        const req = new messages.Request();
-        req.setStartTs(this.ctx.getStartTs());
-        req.setMutationsList([<messages.Mutation>mu]);
-        req.setCommitNow(mu.getCommitNow());
+        const req = new api.Request();
+        req.startTs = this.ctx.startTs;
+        req.mutations = [mu];
+        req.commitNow = mu.commitNow;
 
         return this.doRequest(req, metadata, options);
     }
 
     public async doRequest(
-        req: messages.Request, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<types.Response> {
-        const mutationList = req.getMutationsList();
+        req: api.Request, metadata?: grpc.Metadata, options?: grpc.CallOptions): Promise<api.Response> {
         if (this.finished) {
-            this.dc.debug(`Do request (ERR_FINISHED):\nquery = ${req.getQuery()}\nvars = ${req.getVarsMap()}`);
-            this.dc.debug(`Do request (ERR_FINISHED):\nmutation = ${stringifyMessage(mutationList[0])}`);
+            this.dc.debug(`Do request (ERR_FINISHED):\nquery = ${req.query}\nvars = ${JSON.stringify(req.vars)}`);
+            this.dc.debug(`Do request (ERR_FINISHED):\nmutation = ${stringifyMessage(req.mutations[0])}`);
             throw ERR_FINISHED;
         }
 
-        if (mutationList.length > 0) {
+        if (req.mutations.length > 0) {
             if (this.useReadOnly) {
-                this.dc.debug(`Do request (ERR_READ_ONLY):\nmutation = ${stringifyMessage(mutationList[0])}`);
+                this.dc.debug(`Do request (ERR_READ_ONLY):\nmutation = ${stringifyMessage(req.mutations[0])}`);
                 throw ERR_READ_ONLY;
             }
             this.mutated = true;
         }
 
-        req.setStartTs(this.ctx.getStartTs());
+        req.startTs = this.ctx.startTs;
         this.dc.debug(`Do request:\n${stringifyMessage(req)}`);
 
-        let resp: types.Response;
+        let resp: api.Response;
         const c = this.dc.anyClient();
         const operation = async() => c.query(req, metadata, options);
+
         try {
-            resp = types.createResponse(await operation());
+            resp = await operation();
         } catch (e) {
             if (isJwtExpired(e) === true) {
                 await c.retryLogin(metadata, options);
-                resp = types.createResponse(await operation());
+                resp = await operation();
             } else {
                 // Since a mutation error occurred, the txn should no longer be used (some
                 // mutations could have applied but not others, but we don't know which ones).
@@ -162,11 +152,11 @@ export class Txn {
             }
         }
 
-        if (req.getCommitNow()) {
+        if (req.commitNow) {
             this.finished = true;
         }
 
-        this.mergeContext(resp.getTxn());
+        this.mergeContext(resp.txn);
         this.dc.debug(`Do request:\nresponse = ${stringifyMessage(resp)}`);
 
         return resp;
@@ -225,7 +215,7 @@ export class Txn {
             return;
         }
 
-        this.ctx.setAborted(true);
+        this.ctx.aborted = true;
         const c = this.dc.anyClient();
         const operation = async () => c.commitOrAbort(this.ctx, metadata, options);
         try {
@@ -240,21 +230,21 @@ export class Txn {
         }
     }
 
-    private mergeContext(src?: messages.TxnContext): void {
+    private mergeContext(src?: api.ITxnContext): void {
         if (src === undefined) {
             // This condition will be true only if the server doesn't return a txn context after a query or mutation.
             return;
         }
 
-        if (this.ctx.getStartTs() === 0) {
-            this.ctx.setStartTs(src.getStartTs());
-        } else if (this.ctx.getStartTs() !== src.getStartTs()) {
+        if (this.ctx.startTs === 0) {
+            this.ctx.startTs = src.startTs;
+        } else if (this.ctx.startTs !== src.startTs) {
             // This condition should never be true.
             throw new Error("StartTs mismatch");
         }
 
-        for (const key of src.getKeysList()) {
-            this.ctx.addKeys(key);
+        for (const key of src.keys) {
+            this.ctx.keys.push(key);
         }
     }
 }
